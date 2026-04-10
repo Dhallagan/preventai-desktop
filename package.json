@@ -1,0 +1,88 @@
+{
+  "name": "preventai-desktop",
+  "version": "0.1.0",
+  "description": "PreventAI - Medical Device Risk Intelligence",
+  "main": "dist-electron/electron/main.js",
+  "author": "PreventAI",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:vite\" \"npm:dev:electron\"",
+    "dev:vite": "vite",
+    "dev:electron": "wait-on tcp:5173 && tsc -p tsconfig.electron.json && electron .",
+    "build": "tsc -p tsconfig.electron.json && vite build && electron-builder",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:renderer": "vite build",
+    "typecheck": "tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "start": "electron .",
+    "rebuild": "electron-rebuild"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "better-sqlite3": "^11.5.0",
+    "keytar": "^7.9.0",
+    "mammoth": "^1.8.0",
+    "pdf-parse": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.7.4",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.0.1",
+    "electron": "^32.1.2",
+    "electron-builder": "^25.1.7",
+    "electron-rebuild": "^3.2.9",
+    "postcss": "^8.4.47",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "ai.preventai.desktop",
+    "productName": "PreventAI",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "dist/**/*",
+      "electron/prompts/**/*",
+      "electron/db/migrations/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "electron/prompts",
+        "to": "prompts"
+      },
+      {
+        "from": "electron/db/migrations",
+        "to": "migrations"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.medical",
+      "target": [
+        "dmg"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
+  }
+}

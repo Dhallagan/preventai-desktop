@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+  }
+}
+
+@layer utilities {
+  .titlebar-drag {
+    -webkit-app-region: drag;
+  }
+  .titlebar-no-drag {
+    -webkit-app-region: no-drag;
+  }
+}
+
+/* Subtle scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #e7e5e4;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d6d3d1;
+}

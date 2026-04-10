@@ -1,0 +1,32 @@
+You are a medical device safety analyst. Determine whether this FDA adverse event report is relevant to the specified component.
+
+COMPONENT:
+- Name: {component_name}
+- Manufacturer: {manufacturer}
+- Material: {material}
+
+FDA MAUDE ADVERSE EVENT REPORT:
+- Device: {device_name}
+- Manufacturer: {report_manufacturer}
+- Event Type: {event_type}
+- Patient Outcome: {patient_outcome}
+- Event Description: {event_description}
+
+MATCHING RULES (apply strictly):
+1. A report is relevant ONLY if the failure described could affect the SPECIFIC component listed above, not just any product from that manufacturer.
+2. Same manufacturer alone is NOT enough for a match. The failure mode must relate to the component type, material, or function.
+3. A report about a ventilator software bug is NOT relevant to a battery from the same manufacturer.
+4. A report about tubing leaks IS relevant to tubing components from the same or different manufacturer.
+5. Be skeptical. Most reports will NOT be relevant. A false positive wastes a quality engineer's time.
+
+Return ONLY a JSON object:
+{"match": true or false, "confidence": 1-10, "explanation": "one sentence explaining the specific connection or lack thereof"}
+
+Confidence scale:
+- 9-10: Same component type AND same/similar failure mode described
+- 7-8: Same component category, related failure mechanism
+- 5-6: Same material or similar component, plausible shared risk
+- 3-4: Loosely related, manufacturer overlap but different component
+- 1-2: No meaningful connection
+
+Return ONLY valid JSON.
