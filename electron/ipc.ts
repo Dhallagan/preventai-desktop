@@ -28,6 +28,30 @@ import {
   getAppVersion,
   getDataPath,
 } from './settings';
+import {
+  upsertComponent,
+  updateComponentRisk,
+  linkComponentToProduct,
+  getComponent,
+  listComponents,
+  getComponentsForProduct,
+  getProductsForComponent,
+  searchComponents,
+} from './db/repos/components';
+import {
+  listFolders,
+  createFolder,
+  renameFolder,
+  deleteFolder,
+  moveProductToFolder,
+} from './db/repos/folders';
+import {
+  addActivity,
+  getRecentActivity,
+  getUnreadActivity,
+  markAllRead,
+  markProductRead,
+} from './db/repos/activity';
 import { parseFile, extractComponents } from './analysis/extraction';
 import { retrieveFdaData } from './analysis/retrieval';
 import { matchComponents } from './analysis/matching';
@@ -383,6 +407,56 @@ export function registerIpcHandlers() {
         updateProductName(req.productId, productName);
       }
 
+      // Create/update component records and link to product
+      for (const f of findings) {
+        const compId = upsertComponent({
+          name: f.componentName,
+          manufacturer: f.manufacturer,
+          material: f.material,
+          partNumber: f.partNumber,
+          riskLevel: f.riskLevel,
+        });
+        updateComponentRisk(
+          compId,
+          f.score,
+          f.color,
+          f.severity.label,
+          f.likelihood.label,
+          f.matchCount
+        );
+        linkComponentToProduct(req.productId, compId);
+
+        // Create activity for new high-risk findings
+        if (f.color === 'red') {
+          addActivity({
+            productId: req.productId,
+            componentId: compId,
+            type: 'new_finding',
+            title: `${f.componentName} flagged as critical`,
+            detail: `${f.matchCount} MAUDE reports matched. Score: ${f.score}`,
+            severity: 'critical',
+          });
+        } else if (f.color === 'yellow') {
+          addActivity({
+            productId: req.productId,
+            componentId: compId,
+            type: 'new_finding',
+            title: `${f.componentName} flagged as warning`,
+            detail: `${f.matchCount} MAUDE reports matched. Score: ${f.score}`,
+            severity: 'moderate',
+          });
+        }
+      }
+
+      // Activity for analysis complete
+      addActivity({
+        productId: req.productId,
+        type: 'analysis_complete',
+        title: `Analysis complete: ${productName || 'device'}`,
+        detail: `${redCount} critical, ${yellowCount} warning, ${greenCount} clear in ${elapsed.toFixed(1)}s`,
+        severity: redCount > 0 ? 'critical' : yellowCount > 0 ? 'moderate' : 'info',
+      });
+
       // Build the full detail to send back
       const finalDetail: AnalysisDetail = {
         id: analysisId,
@@ -401,6 +475,162 @@ export function registerIpcHandlers() {
       send('analysis:event', { type: 'error', message: errMsg });
       return { ok: false, error: errMsg };
     }
+  });
+
+  // Components
+  ipcMain.handle('components:list', async () => {
+    const comps = listComponents();
+    return comps.map((c) => ({
+      id: c.id,
+      name: c.name,
+      manufacturer: c.manufacturer,
+      material: c.material || undefined,
+      partNumber: c.part_number || undefined,
+      riskLevel: c.risk_level || undefined,
+      notes: c.notes || undefined,
+      latestScore: c.latest_score,
+      latestColor: c.latest_color,
+      latestSeverityLabel: c.latest_severity_label || undefined,
+      latestLikelihoodLabel: c.latest_likelihood_label || undefined,
+      totalMaudeMatches: c.total_maude_matches,
+      productNames: getProductsForComponent(c.id).map((p) => p.name),
+    }));
+  });
+
+  ipcMain.handle('components:get', async (_e, id: string) => {
+    const c = getComponent(id);
+    if (!c) return null;
+    return {
+      id: c.id,
+      name: c.name,
+      manufacturer: c.manufacturer,
+      material: c.material || undefined,
+      partNumber: c.part_number || undefined,
+      riskLevel: c.risk_level || undefined,
+      notes: c.notes || undefined,
+      latestScore: c.latest_score,
+      latestColor: c.latest_color,
+      latestSeverityLabel: c.latest_severity_label || undefined,
+      latestLikelihoodLabel: c.latest_likelihood_label || undefined,
+      totalMaudeMatches: c.total_maude_matches,
+      productNames: getProductsForComponent(c.id).map((p) => p.name),
+    };
+  });
+
+  ipcMain.handle('components:search', async (_e, query: string) => {
+    const comps = searchComponents(query);
+    return comps.map((c) => ({
+      id: c.id,
+      name: c.name,
+      manufacturer: c.manufacturer,
+      latestScore: c.latest_score,
+      latestColor: c.latest_color,
+      totalMaudeMatches: c.total_maude_matches,
+    }));
+  });
+
+  ipcMain.handle('components:forProduct', async (_e, productId: string) => {
+    const comps = getComponentsForProduct(productId);
+    return comps.map((c) => ({
+      id: c.id,
+      name: c.name,
+      manufacturer: c.manufacturer,
+      material: c.material || undefined,
+      partNumber: c.part_number || undefined,
+      latestScore: c.latest_score,
+      latestColor: c.latest_color,
+      latestSeverityLabel: c.latest_severity_label || undefined,
+      latestLikelihoodLabel: c.latest_likelihood_label || undefined,
+      totalMaudeMatches: c.total_maude_matches,
+    }));
+  });
+
+  // Folders
+  ipcMain.handle('folders:list', async () => {
+    return listFolders().map((f) => ({ id: f.id, name: f.name, sortOrder: f.sort_order }));
+  });
+
+  ipcMain.handle('folders:create', async (_e, name: string) => {
+    const id = createFolder(name);
+    return { id };
+  });
+
+  ipcMain.handle('folders:rename', async (_e, id: string, name: string) => {
+    renameFolder(id, name);
+    return { ok: true };
+  });
+
+  ipcMain.handle('folders:delete', async (_e, id: string) => {
+    deleteFolder(id);
+    return { ok: true };
+  });
+
+  ipcMain.handle('folders:moveProduct', async (_e, productId: string, folderId: string | null) => {
+    moveProductToFolder(productId, folderId);
+    return { ok: true };
+  });
+
+  // Activity feed
+  ipcMain.handle('activity:recent', async (_e, limit?: number) => {
+    const items = getRecentActivity(limit || 50);
+    // Enrich with product names
+    const productCache = new Map<string, string>();
+    return items.map((a) => {
+      let productName: string | undefined;
+      if (a.product_id) {
+        if (!productCache.has(a.product_id)) {
+          const p = getProduct(a.product_id);
+          productCache.set(a.product_id, p?.name || 'Unknown');
+        }
+        productName = productCache.get(a.product_id);
+      }
+      return {
+        id: a.id,
+        productId: a.product_id || undefined,
+        componentId: a.component_id || undefined,
+        type: a.type,
+        title: a.title,
+        detail: a.detail || undefined,
+        severity: a.severity || undefined,
+        createdAt: a.created_at,
+        isRead: !!a.read_at,
+        productName,
+      };
+    });
+  });
+
+  ipcMain.handle('activity:unread', async () => {
+    return getUnreadActivity().length;
+  });
+
+  ipcMain.handle('activity:markAllRead', async () => {
+    markAllRead();
+    return { ok: true };
+  });
+
+  ipcMain.handle('activity:markProductRead', async (_e, productId: string) => {
+    markProductRead(productId);
+    return { ok: true };
+  });
+
+  // Search across everything
+  ipcMain.handle('search:global', async (_e, query: string) => {
+    const products = listProducts().filter(
+      (p) =>
+        p.name.toLowerCase().includes(query.toLowerCase()) ||
+        (p.manufacturer || '').toLowerCase().includes(query.toLowerCase())
+    );
+    const components = searchComponents(query);
+    return {
+      products: products.map((p) => ({ id: p.id, name: p.name, type: 'product' as const })),
+      components: components.map((c) => ({
+        id: c.id,
+        name: c.name,
+        manufacturer: c.manufacturer,
+        type: 'component' as const,
+        color: c.latest_color,
+      })),
+    };
   });
 
   // Window helpers

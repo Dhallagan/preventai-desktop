@@ -2,6 +2,13 @@
 
 export type ScheduleFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'manual';
 
+export interface Folder {
+  id: string;
+  name: string;
+  sortOrder: number;
+  productCount?: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -9,8 +16,38 @@ export interface Product {
   schedule: ScheduleFrequency;
   createdAt: number;
   lastAnalyzedAt?: number;
-  // File metadata is kept so we know what was uploaded.
+  folderId?: string;
+  folderName?: string;
   files: ProductFile[];
+}
+
+export interface ComponentNode {
+  id: string;
+  name: string;
+  manufacturer: string;
+  material?: string;
+  partNumber?: string;
+  riskLevel?: string;
+  notes?: string;
+  latestScore: number;
+  latestColor: 'red' | 'yellow' | 'green';
+  latestSeverityLabel?: string;
+  latestLikelihoodLabel?: string;
+  totalMaudeMatches: number;
+  productNames?: string[];
+}
+
+export interface ActivityItem {
+  id: string;
+  productId?: string;
+  componentId?: string;
+  type: string;
+  title: string;
+  detail?: string;
+  severity?: string;
+  createdAt: number;
+  isRead: boolean;
+  productName?: string;
 }
 
 export interface ProductFile {

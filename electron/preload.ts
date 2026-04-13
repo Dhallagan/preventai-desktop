@@ -8,6 +8,9 @@ import type {
   Product,
   AnalysisSummary,
   ProgressEvent,
+  ComponentNode,
+  Folder,
+  ActivityItem,
 } from '../shared/types';
 
 const api = {
@@ -36,6 +39,35 @@ const api = {
     ipcRenderer.invoke('products:setSchedule', id, schedule),
   deleteProduct: (id: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('products:delete', id),
 
+  // Components
+  listComponents: (): Promise<ComponentNode[]> => ipcRenderer.invoke('components:list'),
+  getComponent: (id: string): Promise<ComponentNode | null> => ipcRenderer.invoke('components:get', id),
+  searchComponents: (query: string): Promise<ComponentNode[]> => ipcRenderer.invoke('components:search', query),
+  getComponentsForProduct: (productId: string): Promise<ComponentNode[]> =>
+    ipcRenderer.invoke('components:forProduct', productId),
+
+  // Folders
+  listFolders: (): Promise<Folder[]> => ipcRenderer.invoke('folders:list'),
+  createFolder: (name: string): Promise<{ id: string }> => ipcRenderer.invoke('folders:create', name),
+  renameFolder: (id: string, name: string): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('folders:rename', id, name),
+  deleteFolder: (id: string): Promise<{ ok: boolean }> => ipcRenderer.invoke('folders:delete', id),
+  moveProductToFolder: (productId: string, folderId: string | null): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('folders:moveProduct', productId, folderId),
+
+  // Activity
+  getRecentActivity: (limit?: number): Promise<ActivityItem[]> => ipcRenderer.invoke('activity:recent', limit),
+  getUnreadCount: (): Promise<number> => ipcRenderer.invoke('activity:unread'),
+  markAllRead: (): Promise<{ ok: boolean }> => ipcRenderer.invoke('activity:markAllRead'),
+  markProductRead: (productId: string): Promise<{ ok: boolean }> =>
+    ipcRenderer.invoke('activity:markProductRead', productId),
+
+  // Search
+  globalSearch: (query: string): Promise<{
+    products: { id: string; name: string; type: 'product' }[];
+    components: { id: string; name: string; manufacturer: string; type: 'component'; color: string }[];
+  }> => ipcRenderer.invoke('search:global', query),
+
   // Analysis
   getAnalysis: (id: string): Promise<AnalysisDetail | null> => ipcRenderer.invoke('analysis:get', id),
   getLatestAnalysisForProduct: (productId: string): Promise<AnalysisDetail | null> =>
@@ -43,7 +75,6 @@ const api = {
   runAnalysis: (req: AnalyzeRequest): Promise<{ ok: boolean; analysisId?: string; error?: string }> =>
     ipcRenderer.invoke('analysis:run', req),
 
-  // Event subscription for analysis progress
   onAnalysisEvent: (callback: (event: ProgressEvent) => void): (() => void) => {
     const handler = (_e: any, payload: ProgressEvent) => callback(payload);
     ipcRenderer.on('analysis:event', handler);

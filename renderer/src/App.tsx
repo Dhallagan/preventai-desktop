@@ -5,6 +5,8 @@ import Welcome from './pages/Welcome';
 import Dashboard from './pages/Dashboard';
 import AddProduct from './pages/AddProduct';
 import ProductDetail from './pages/ProductDetail';
+import ComponentPage from './pages/ComponentPage';
+import DigestPage from './pages/DigestPage';
 import Settings from './pages/Settings';
 import AppShell from './components/AppShell';
 import type { Settings as SettingsType } from '../../shared/types';
@@ -45,6 +47,8 @@ export default function App() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/add-product" element={<AddProduct />} />
         <Route path="/product/:id" element={<ProductDetail />} />
+        <Route path="/component/:id" element={<ComponentPage />} />
+        <Route path="/digest" element={<DigestPage />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
